@@ -1,697 +1,543 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>등산 스마트 네비게이터 - 위치 트래커</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scaleable=no">
+  <title>등산 지도 & 위치 트래커</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #121212; color: #ffffff; }
     
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        outdoor: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            800: '#166534',
-                            900: '#14532d',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    #app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
     
-    <style>
-        html, body {
-            height: 100%;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            touch-action: manipulation;
-        }
-        
-        #map {
-            height: 100%;
-            width: 100%;
-            z-index: 1;
-        }
+    /* Header */
+    header { height: 50px; background: #1f1f1f; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #333; z-index: 1000; }
+    header h1 { font-size: 1.1rem; font-weight: 600; color: #4caf50; display: flex; align-items: center; gap: 8px; }
+    .status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; background: #333; color: #aaa; font-weight: 500; }
+    .status-badge.active { background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50; }
 
-        /* Leaflet 컨트롤 위치 및 스타일 조정 */
-        .leaflet-top.leaflet-right, .leaflet-bottom.leaflet-right {
-            z-index: 999;
-        }
-        
-        /* 다크모드 시 지도 필터링 (필요 시) */
-        .dark .leaflet-tile-pane {
-            filter: brightness(0.85) contrast(1.1) saturate(0.9);
-        }
+    /* Map */
+    #map { flex: 1; width: 100%; z-index: 1; }
 
-        /* 커스텀 펄스 마커 */
-        .user-location-marker {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .user-location-inner {
-            width: 16px;
-            height: 16px;
-            background-color: #2563eb;
-            border: 3px solid #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 0 8px rgba(0,0,0,0.4);
-        }
-        .user-location-pulse {
-            position: absolute;
-            width: 32px;
-            height: 32px;
-            background-color: rgba(37, 99, 235, 0.35);
-            border-radius: 50%;
-            animation: pulse-animation 2s infinite;
-        }
-        @keyframes pulse-animation {
-            0% { transform: scale(0.6); opacity: 1; }
-            100% { transform: scale(1.6); opacity: 0; }
-        }
+    /* Floating Action Buttons on Map */
+    .map-controls { position: absolute; top: 60px; right: 12px; z-index: 999; display: flex; flex-direction: column; gap: 10px; }
+    .btn-fab { width: 44px; height: 44px; border-radius: 50%; background: #2a2a2a; color: #fff; border: 1px solid #444; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; }
+    .btn-fab:active { transform: scale(0.95); background: #333; }
+    .btn-fab.tracking { background: #e53935; border-color: #ff5252; animation: pulse 1.5s infinite; }
 
-        /* 하단 서치 스크롤 차단 */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-    </style>
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+    }
+
+    /* Info Bar Overlay */
+    .info-overlay { position: absolute; top: 60px; left: 12px; z-index: 999; background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(8px); padding: 10px 14px; border-radius: 12px; border: 1px solid #444; display: flex; gap: 16px; font-size: 0.8rem; }
+    .info-item { display: flex; flex-direction: column; }
+    .info-item .label { color: #888; font-size: 0.7rem; }
+    .info-item .value { font-weight: bold; font-size: 0.95rem; color: #fff; }
+
+    /* Bottom Panel */
+    .bottom-panel { height: 220px; background: #1e1e1e; border-top: 1px solid #333; display: flex; flex-direction: column; z-index: 1000; }
+    .tab-buttons { display: flex; border-bottom: 1px solid #2d2d2d; background: #181818; }
+    .tab-btn { flex: 1; padding: 12px 0; background: none; border: none; color: #888; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; }
+    .tab-btn.active { color: #4caf50; border-bottom: 2px solid #4caf50; background: #1e1e1e; }
+
+    .tab-content { flex: 1; padding: 12px; overflow-y: auto; display: none; }
+    .tab-content.active { display: block; }
+
+    /* List Item Styling */
+    .wp-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #282828; border-radius: 8px; margin-bottom: 8px; border: 1px solid #333; }
+    .wp-info { display: flex; flex-direction: column; gap: 2px; }
+    .wp-title { font-weight: bold; font-size: 0.9rem; color: #fff; }
+    .wp-meta { font-size: 0.75rem; color: #aaa; }
+    .btn-delete { background: none; border: none; color: #ff5252; font-size: 1rem; cursor: pointer; padding: 4px 8px; }
+
+    /* Popup Style Override for Dark Theme */
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #282828 !important; color: #fff !important; border: 1px solid #444; }
+    .popup-form { display: flex; flex-direction: column; gap: 8px; width: 200px; padding: 4px; }
+    .popup-form input, .popup-form select, .popup-form textarea { width: 100%; padding: 8px; background: #181818; border: 1px solid #444; color: #fff; border-radius: 4px; font-size: 0.85rem; }
+    .popup-form button { background: #4caf50; color: #fff; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+    /* Utility */
+    .btn-action { width: 100%; padding: 10px; background: #333; border: 1px solid #444; color: #fff; border-radius: 6px; font-size: 0.85rem; cursor: pointer; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-action:hover { background: #444; }
+  </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 flex flex-col h-full select-none">
+<body>
 
-    <!-- 상단 툴바 / 정보 헤더 -->
-    <header class="absolute top-0 left-0 right-0 z-20 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 px-4 py-2.5 flex items-center justify-between shadow-md">
-        <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-mountain-sun text-emerald-600 dark:text-emerald-400 text-xl"></i>
-            <h1 class="font-bold text-base sm:text-lg tracking-tight">등산 스마트 트래커</h1>
-        </div>
-
-        <div class="flex items-center space-x-2">
-            <!-- 네트워크/오프라인 안내 태그 -->
-            <span id="status-badge" class="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-medium flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>온라인</span>
-            </span>
-
-            <!-- 모드/테마 토글 -->
-            <button id="btn-theme" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 active:scale-95 transition" title="다크/고대비 모드 토글">
-                <i class="fa-solid fa-moon text-sm"></i>
-            </button>
-        </div>
+  <div id="app-container">
+    <header>
+      <h1><i class="fa-solid fa-mountain"></i> 등산 트래커</h1>
+      <span id="status-badge" class="status-badge">대기 중</span>
     </header>
 
-    <!-- 지도 영역 -->
-    <main class="relative flex-1 w-full h-full">
-        <div id="map"></div>
+    <div style="position: relative; flex: 1; width: 100%;">
+      <div id="map"></div>
 
-        <!-- 우측 지도 컨트롤 패널 (오버레이) -->
-        <div class="absolute top-16 right-3 z-10 flex flex-col gap-2">
-            <!-- 지도 레이어 변경 -->
-            <button id="btn-layer" class="w-11 h-11 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition border border-gray-200 dark:border-gray-700" title="지도 방식 변경">
-                <i class="fa-solid fa-layer-group text-lg"></i>
-            </button>
-
-            <!-- 현재 위치로 이동 -->
-            <button id="btn-locate" class="w-11 h-11 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition border border-gray-200 dark:border-gray-700" title="현재 위치 찾기">
-                <i class="fa-solid fa-crosshairs text-lg"></i>
-            </button>
-
-            <!-- 라이브 추적 토글 -->
-            <button id="btn-tracking-toggle" class="w-11 h-11 bg-white dark:bg-gray-800 text-gray-400 rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition border border-gray-200 dark:border-gray-700" title="위치 추적 고정">
-                <i class="fa-solid fa-location-arrow text-lg"></i>
-            </button>
-
-            <!-- 웨이포인트 추가 -->
-            <button id="btn-add-waypoint" class="w-11 h-11 bg-amber-500 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-amber-600 active:scale-95 transition" title="현재 위치에 웨이포인트 추가">
-                <i class="fa-solid fa-map-pin text-lg"></i>
-            </button>
+      <!-- Info Bar -->
+      <div class="info-overlay">
+        <div class="info-item">
+          <span class="label">고도</span>
+          <span id="stat-alt" class="value">-- m</span>
         </div>
-
-        <!-- 하단 실시간 등산 통계 패널 -->
-        <div class="absolute bottom-4 left-3 right-3 z-10 flex flex-col gap-2 max-w-lg mx-auto">
-            
-            <!-- 경로 기록 컨트롤 바 -->
-            <div class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md p-3 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <button id="btn-record-toggle" class="px-4 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition flex items-center gap-2 shadow-md">
-                        <i id="record-icon" class="fa-solid fa-play"></i>
-                        <span id="record-text">트래킹 시작</span>
-                    </button>
-                    
-                    <button id="btn-record-stop" class="p-2.5 rounded-xl font-bold text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled title="기록 중지 및 저장">
-                        <i class="fa-solid fa-square text-lg"></i>
-                    </button>
-                </div>
-
-                <div class="text-right">
-                    <span class="text-xs text-gray-500 dark:text-gray-400 block font-medium">소요 시간</span>
-                    <span id="stat-time" class="text-xl font-mono font-bold text-gray-800 dark:text-gray-100">00:00:00</span>
-                </div>
-            </div>
-
-            <!-- 통계 상세 카드 (접기/펼치기 가능) -->
-            <div id="stats-panel" class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 grid grid-cols-3 gap-2 text-center">
-                <div class="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-xl">
-                    <span class="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">이동 거리</span>
-                    <div class="flex justify-center items-baseline gap-0.5">
-                        <span id="stat-distance" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">0.00</span>
-                        <span class="text-xs font-semibold text-gray-500">km</span>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-xl">
-                    <span class="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">현재 고도</span>
-                    <div class="flex justify-center items-baseline gap-0.5">
-                        <span id="stat-altitude" class="text-lg font-bold text-blue-600 dark:text-blue-400">--</span>
-                        <span class="text-xs font-semibold text-gray-500">m</span>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-xl">
-                    <span class="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">현재 속도</span>
-                    <div class="flex justify-center items-baseline gap-0.5">
-                        <span id="stat-speed" class="text-lg font-bold text-amber-600 dark:text-amber-400">0.0</span>
-                        <span class="text-xs font-semibold text-gray-500">km/h</span>
-                    </div>
-                </div>
-            </div>
+        <div class="info-item">
+          <span class="label">이동 거리</span>
+          <span id="stat-dist" class="value">0.0 km</span>
         </div>
-    </main>
-
-    <!-- 웨이포인트 작성 모달 -->
-    <div id="modal-waypoint" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-sm w-full p-5 border border-gray-200 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
-            <h3 class="text-lg font-bold mb-3 flex items-center gap-2 text-gray-900 dark:text-white">
-                <i class="fa-solid fa-map-pin text-amber-500"></i> 웨이포인트 추가
-            </h3>
-            
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">장소 유형</label>
-                    <select id="wp-type" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                        <option value="rest">☕ 쉼터 / 휴식처</option>
-                        <option value="water">💧 약수터 / 음용수</option>
-                        <option value="view">📸 전망대 / 뷰포인트</option>
-                        <option value="danger">⚠️ 위험 / 주의지역</option>
-                        <option value="summit">🏔️ 봉우리 / 정상</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">메모 / 설명</label>
-                    <textarea id="wp-note" rows="3" placeholder="예: 약수터 물맛 좋음, 경사 급함 등" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-2 mt-5">
-                <button id="btn-wp-cancel" class="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200">취소</button>
-                <button id="btn-wp-save" class="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-md">저장</button>
-            </div>
+        <div class="info-item">
+          <span class="label">경과 시간</span>
+          <span id="stat-time" class="value">00:00</span>
         </div>
+      </div>
+
+      <!-- Map Floating Buttons -->
+      <div class="map-controls">
+        <button id="btn-recenter" class="btn-fab" title="내 위치로"><i class="fa-solid fa-crosshairs"></i></button>
+        <button id="btn-add-wp" class="btn-fab" title="현재 위치에 웨이포인트 추가"><i class="fa-solid fa-map-pin"></i></button>
+        <button id="btn-toggle-track" class="btn-fab" title="트래킹 시작/정지"><i class="fa-solid fa-play"></i></button>
+      </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Bottom Dashboard Panel -->
+    <div class="bottom-panel">
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="tab-waypoints"><i class="fa-solid fa-list"></i> 웨이포인트 (<span id="wp-count">0</span>)</button>
+        <button class="tab-btn" data-tab="tab-settings"><i class="fa-solid fa-gear"></i> 설정 / 내보내기</button>
+      </div>
 
-    <script>
-        // --- 앱 상태 관리 변수 ---
-        let map, userMarker, accuracyCircle;
-        let watchPositionId = null;
-        let isTrackingCenter = true; // 현재 위치 중앙 고정 여부
-        let isRecording = false; // 경로 트래킹(녹화) 상태
-        let isPaused = false;
+      <div id="tab-waypoints" class="tab-content active">
+        <div id="wp-list">
+          <p style="color: #666; text-align: center; margin-top: 20px; font-size: 0.85rem;">
+            지도를 터치하거나 📍 버튼을 눌러<br>웨이포인트를 추가해 보세요.
+          </p>
+        </div>
+      </div>
 
-        // GPS 및 트래킹 데이터
-        let currentPosition = null; // {lat, lng, alt, speed}
-        let trackPoints = []; // [{lat, lng, alt, time}]
-        let totalDistance = 0; // 단위: km
-        let startTime = null;
-        let timerInterval = null;
-        let elapsedTime = 0; // 초 단위
+      <div id="tab-settings" class="tab-content">
+        <button id="btn-export-gpx" class="btn-action"><i class="fa-solid fa-file-export"></i> GPX 파일로 저장하기</button>
+        <button id="btn-clear-data" class="btn-action" style="color: #ff5252;"><i class="fa-solid fa-trash"></i> 전체 데이터 초기화</button>
+      </div>
+    </div>
+  </div>
 
-        let waypoints = []; // [{id, lat, lng, type, note, marker}]
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-        // 타일 레이어
-        let activeTileLayer = null;
-        let currentMapType = 'topo'; // 'topo' 또는 'osm'
+  <script>
+    // --- Application State ---
+    let map, userMarker, trackPolyline;
+    let isTracking = false;
+    let watchId = null;
+    let currentPosition = null;
+    let pathCoordinates = [];
+    let waypoints = [];
+    let totalDistance = 0; // in meters
+    let startTime = null;
+    let timerInterval = null;
 
-        // 지도 타일 설정
-        const tileLayers = {
-            topo: LeafletTile('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                maxZoom: 17,
-                attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
-            }),
-            osm: LeafletTile('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            })
-        };
+    // Custom Marker Icons Mapping
+    const typeIcons = {
+      '쉼터': '☕',
+      '약수터': '💧',
+      '위험지역': '⚠️',
+      '사진포인트': '📸',
+      '기타': '📍'
+    };
 
-        function LeafletTile(url, options) {
-            return L.tileLayer(url, options);
+    // Initialize Map on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      loadSavedData();
+      setupUIEvents();
+    });
+
+    function initMap() {
+      // Default: Seoul City Hall (Fallback)
+      map = L.map('map', {
+        zoomControl: false,
+        tap: true // Enable mobile tap handling in Leaflet
+      }).setView([37.5665, 126.9780], 15);
+
+      // Add OpenTopoMap Layer (Topographic map with terrain contours)
+      L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: 'Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap'
+      }).addTo(map);
+
+      // Track Line Layer
+      trackPolyline = L.polyline([], { color: '#ff3366', weight: 4, opacity: 0.8 }).addTo(map);
+
+      // Direct Map Tap/Click Listener for manual Waypoint Creation
+      map.on('click', onMapClick);
+
+      // Request initial location
+      getCurrentLocation();
+    }
+
+    function onMapClick(e) {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      
+      const popupContent = `
+        <div class="popup-form">
+          <strong style="text-align:center;">새 웨이포인트 추가</strong>
+          <input type="text" id="pop-name" placeholder="지점 이름 (예: 약수터)" />
+          <select id="pop-type">
+            <option value="쉼터">☕ 쉼터</option>
+            <option value="약수터">💧 약수터</option>
+            <option value="위험지역">⚠️ 위험지역</option>
+            <option value="사진포인트">📸 사진포인트</option>
+            <option value="기타" selected>📍 기타</option>
+          </select>
+          <textarea id="pop-note" placeholder="메모 (선택)"></textarea>
+          <button onclick="saveWaypointFromPopup(${lat}, ${lng})">저장하기</button>
+        </div>
+      `;
+
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent(popupContent)
+        .openOn(map);
+    }
+
+    function saveWaypointFromPopup(lat, lng) {
+      const name = document.getElementById('pop-name').value || '이름 없음';
+      const type = document.getElementById('pop-type').value;
+      const note = document.getElementById('pop-note').value;
+
+      const newWp = {
+        id: Date.now(),
+        lat: lat,
+        lng: lng,
+        name: name,
+        type: type,
+        note: note,
+        alt: currentPosition ? currentPosition.alt : null,
+        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      waypoints.push(newWp);
+      renderWaypointMarker(newWp);
+      updateWaypointList();
+      saveDataToStorage();
+
+      map.closePopup();
+    }
+
+    function renderWaypointMarker(wp) {
+      const iconEmoji = typeIcons[wp.type] || '📍';
+      const customIcon = L.divIcon({
+        html: `<div style="font-size: 22px; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.7));">${iconEmoji}</div>`,
+        className: 'custom-wp-icon',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+
+      const marker = L.marker([wp.lat, wp.lng], { icon: customIcon }).addTo(map);
+      
+      marker.bindPopup(`
+        <div style="font-size:0.85rem;">
+          <strong style="color:#4caf50;">[${wp.type}] ${wp.name}</strong><br>
+          ${wp.note ? `<span style="color:#ccc;">${wp.note}</span><br>` : ''}
+          <small style="color:#888;">기록 시간: ${wp.time}</small>
+        </div>
+      `);
+
+      wp.markerRef = marker;
+    }
+
+    function getCurrentLocation() {
+      if (!navigator.geolocation) {
+        alert('이 브라우저에서는 위치 서비스를 지원하지 않습니다.');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const alt = pos.coords.altitude;
+
+          currentPosition = { lat, lng, alt };
+          updateUserMarker(lat, lng);
+          map.setView([lat, lng], 16);
+          
+          document.getElementById('stat-alt').textContent = alt ? `${Math.round(alt)} m` : 'N/A';
+        },
+        (err) => {
+          console.warn(`Geolocation Error (${err.code}): ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    function updateUserMarker(lat, lng) {
+      if (!userMarker) {
+        const userIcon = L.divIcon({
+          html: `<div style="width:16px; height:16px; background:#2196f3; border:3px solid #fff; border-radius:50%; box-shadow:0 0 8px rgba(33,150,243,0.8);"></div>`,
+          className: 'user-pos-icon',
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
+        });
+        userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+      } else {
+        userMarker.setLatLng([lat, lng]);
+      }
+    }
+
+    // --- Tracking Logic ---
+    function toggleTracking() {
+      const btn = document.getElementById('btn-toggle-track');
+      const badge = document.getElementById('status-badge');
+
+      if (!isTracking) {
+        // Start Tracking
+        isTracking = true;
+        btn.classList.add('tracking');
+        btn.innerHTML = '<i class="fa-solid fa-square"></i>';
+        badge.classList.add('active');
+        badge.textContent = '기록 중';
+
+        if (!startTime) startTime = new Date();
+        startTimer();
+
+        watchId = navigator.geolocation.watchPosition(
+          onPositionUpdate,
+          (err) => console.warn(err),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+      } else {
+        // Stop Tracking
+        isTracking = false;
+        btn.classList.remove('tracking');
+        btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        badge.classList.remove('active');
+        badge.textContent = '일시 정지';
+
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+        stopTimer();
+      }
+    }
+
+    function onPositionUpdate(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const alt = pos.coords.altitude;
+
+      currentPosition = { lat, lng, alt };
+      updateUserMarker(lat, lng);
+
+      // Distance calculation
+      if (pathCoordinates.length > 0) {
+        const prevLatLng = pathCoordinates[pathCoordinates.length - 1];
+        const distDelta = map.distance(prevLatLng, [lat, lng]);
+        if (distDelta > 3) { // Movement threshold > 3 meters
+          totalDistance += distDelta;
+          pathCoordinates.push([lat, lng]);
+          trackPolyline.setLatLngs(pathCoordinates);
         }
+      } else {
+        pathCoordinates.push([lat, lng]);
+      }
 
-        // 경로 표시용 L.polyline
-        let trackPolyline = null;
+      // Update UI Stats
+      document.getElementById('stat-dist').textContent = `${(totalDistance / 1000).toFixed(2)} km`;
+      document.getElementById('stat-alt').textContent = alt ? `${Math.round(alt)} m` : 'N/A';
+      
+      saveDataToStorage();
+    }
 
-        // --- 초기화 함수 ---
-        window.onload = function() {
-            initMap();
-            initEventListeners();
-            startGeolocationWatch();
-            checkOnlineStatus();
-        };
-
-        // 지도 초기화
-        function initMap() {
-            // 기본 서울 한라산/북한산 부근 또는 기본 위치
-            const defaultCoords = [37.5665, 126.9780]; 
-            
-            map = L.map('map', {
-                center: defaultCoords,
-                zoom: 14,
-                zoomControl: false // 커스텀 위치 컨트롤 사용
-            });
-
-            // 기본 레이어 (등산용 OpenTopoMap)
-            activeTileLayer = tileLayers.topo.addTo(map);
-
-            // 경로 그리기용 Polyline 초기화
-            trackPolyline = L.polyline([], {
-                color: '#ef4444',
-                weight: 5,
-                opacity: 0.85,
-                lineJoin: 'round',
-                dashArray: null
-            }).addTo(map);
-
-            // 지도 드래그 시 자동 중앙 고정 해제
-            map.on('dragstart', () => {
-                setTrackingCenter(false);
-            });
+    // --- UI Controls & Event Listeners ---
+    function setupUIEvents() {
+      document.getElementById('btn-recenter').addEventListener('click', () => {
+        if (currentPosition) {
+          map.setView([currentPosition.lat, currentPosition.lng], 16);
+        } else {
+          getCurrentLocation();
         }
+      });
 
-        // GPS 위치 추적 시작
-        function startGeolocationWatch() {
-            if ('geolocation' in navigator) {
-                const options = {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 0
-                };
+      document.getElementById('btn-toggle-track').addEventListener('click', toggleTracking);
 
-                watchPositionId = navigator.geolocation.watchPosition(
-                    handlePositionSuccess,
-                    handlePositionError,
-                    options
-                );
-            } else {
-                showToast('이 브라우저는 GPS 위치 서비스를 지원하지 않습니다.');
-            }
+      document.getElementById('btn-add-wp').addEventListener('click', () => {
+        if (!currentPosition) {
+          alert('현재 GPS 위치 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+          return;
         }
+        
+        onMapClick({ latlng: L.latLng(currentPosition.lat, currentPosition.lng) });
+      });
 
-        // 위치 수신 성공 시
-        function handlePositionSuccess(pos) {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const accuracy = pos.coords.accuracy;
-            const alt = pos.coords.altitude; // meters
-            const speed = pos.coords.speed; // m/s
+      // Bottom Tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-            currentPosition = { lat, lng, alt, speed };
+          const targetTab = e.currentTarget.getAttribute('data-tab');
+          e.currentTarget.classList.add('active');
+          document.getElementById(targetTab).classList.add('active');
+        });
+      });
 
-            const latLng = [lat, lng];
+      document.getElementById('btn-export-gpx').addEventListener('click', exportGPX);
+      document.getElementById('btn-clear-data').addEventListener('click', clearAllData);
+    }
 
-            // 1. 사용자 마커 및 오차 범위 업데이트
-            if (!userMarker) {
-                // 커스텀 아이콘
-                const userIcon = L.divIcon({
-                    className: 'user-location-marker',
-                    html: '<div class="user-location-pulse"></div><div class="user-location-inner"></div>',
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16]
-                });
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        const now = new Date();
+        const diffMs = now - startTime;
+        const totalSecs = Math.floor(diffMs / 1000);
+        const mins = Math.floor(totalSecs / 60).toString().padStart(2, '0');
+        const secs = (totalSecs % 60).toString().padStart(2, '0');
+        document.getElementById('stat-time').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
 
-                userMarker = L.marker(latLng, { icon: userIcon }).addTo(map);
-                accuracyCircle = L.circle(latLng, {
-                    radius: accuracy,
-                    color: '#2563eb',
-                    fillColor: '#3b82f6',
-                    fillOpacity: 0.15,
-                    weight: 1
-                }).addTo(map);
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+    }
 
-                // 첫 위치 수신 시 이동
-                map.setView(latLng, 16);
-            } else {
-                userMarker.setLatLng(latLng);
-                accuracyCircle.setLatLng(latLng);
-                accuracyCircle.setRadius(accuracy);
+    function updateWaypointList() {
+      const listContainer = document.getElementById('wp-list');
+      document.getElementById('wp-count').textContent = waypoints.length;
 
-                if (isTrackingCenter) {
-                    map.panTo(latLng);
-                }
-            }
+      if (waypoints.length === 0) {
+        listContainer.innerHTML = `
+          <p style="color: #666; text-align: center; margin-top: 20px; font-size: 0.85rem;">
+            지도를 터치하거나 📍 버튼을 눌러<br>웨이포인트를 추가해 보세요.
+          </p>`;
+        return;
+      }
 
-            // 2. 실시간 통계 UI 업데이트 (고도, 속도)
-            updateRealtimeStats(alt, speed);
+      listContainer.innerHTML = '';
+      waypoints.forEach((wp) => {
+        const item = document.createElement('div');
+        item.className = 'wp-item';
+        item.innerHTML = `
+          <div class="wp-info">
+            <span class="wp-title">${typeIcons[wp.type] || '📍'} ${wp.name}</span>
+            <span class="wp-meta">시간: ${wp.time} ${wp.alt ? `| 고도: ${Math.round(wp.alt)}m` : ''}</span>
+          </div>
+          <button class="btn-delete" onclick="deleteWaypoint(${wp.id})"><i class="fa-solid fa-trash"></i></button>
+        `;
+        listContainer.appendChild(item);
+      });
+    }
 
-            // 3. 기록 중일 경우 경로 데이터 누적
-            if (isRecording && !isPaused) {
-                recordNewPoint(lat, lng, alt);
-            }
+    function deleteWaypoint(id) {
+      const idx = waypoints.findIndex(w => w.id === id);
+      if (idx !== -1) {
+        if (waypoints[idx].markerRef) {
+          map.removeLayer(waypoints[idx].markerRef);
         }
+        waypoints.splice(idx, 1);
+        updateWaypointList();
+        saveDataToStorage();
+      }
+    }
 
-        // 위치 수신 실패 시
-        function handlePositionError(err) {
-            console.warn(`GPS Error (${err.code}): ${err.message}`);
-            // 필요 시 UI 표시
+    // --- Persistence (LocalStorage) ---
+    function saveDataToStorage() {
+      const data = {
+        pathCoordinates,
+        totalDistance,
+        waypoints: waypoints.map(w => ({ ...w, markerRef: null }))
+      };
+      localStorage.setItem('hiking_tracker_data', JSON.stringify(data));
+    }
+
+    function loadSavedData() {
+      const saved = localStorage.getItem('hiking_tracker_data');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          pathCoordinates = data.pathCoordinates || [];
+          totalDistance = data.totalDistance || 0;
+          waypoints = data.waypoints || [];
+
+          if (pathCoordinates.length > 0) {
+            trackPolyline.setLatLngs(pathCoordinates);
+            document.getElementById('stat-dist').textContent = `${(totalDistance / 1000).toFixed(2)} km`;
+          }
+
+          waypoints.forEach(wp => renderWaypointMarker(wp));
+          updateWaypointList();
+        } catch (e) {
+          console.error("데이터 복원 실패:", e);
         }
+      }
+    }
 
-        // 실시간 통계 UI 표시
-        function updateRealtimeStats(alt, speed) {
-            const altEl = document.getElementById('stat-altitude');
-            const speedEl = document.getElementById('stat-speed');
+    function clearAllData() {
+      if (confirm('모든 경로 기록 및 웨이포인트를 삭제하시겠습니까?')) {
+        localStorage.removeItem('hiking_tracker_data');
+        location.reload();
+      }
+    }
 
-            if (alt !== null && alt !== undefined && !isNaN(alt)) {
-                altEl.textContent = Math.round(alt);
-            } else {
-                altEl.textContent = '--';
-            }
+    // --- GPX File Export ---
+    function exportGPX() {
+      if (pathCoordinates.length === 0 && waypoints.length === 0) {
+        alert('저장할 트랙이나 웨이포인트 데이터가 없습니다.');
+        return;
+      }
 
-            if (speed !== null && speed !== undefined && !isNaN(speed) && speed > 0) {
-                // m/s -> km/h 변환
-                const speedKmH = (speed * 3.6).toFixed(1);
-                speedEl.textContent = speedKmH;
-            } else {
-                speedEl.textContent = '0.0';
-            }
+      let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Hiking Tracker App" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>등산 경로 기록</name>
+    <time>${new Date().toISOString()}</time>
+  </metadata>\n`;
+
+      // Waypoints
+      waypoints.forEach(wp => {
+        gpx += `  <wpt lat="${wp.lat}" lon="${wp.lng}">\n`;
+        if (wp.alt) gpx += `    <ele>${wp.alt}</ele>\n`;
+        gpx += `    <name>${escapeXml(wp.name)}</name>\n`;
+        gpx += `    <desc>${escapeXml(wp.note || wp.type)}</desc>\n`;
+        gpx += `  </wpt>\n`;
+      });
+
+      // Track
+      if (pathCoordinates.length > 0) {
+        gpx += `  <trk>\n    <name>등산 트랙</name>\n    <trkseg>\n`;
+        pathCoordinates.forEach(pt => {
+          gpx += `      <trkpt lat="${pt[0]}" lon="${pt[1]}"></trkpt>\n`;
+        });
+        gpx += `    </trkseg>\n  </trk>\n`;
+      }
+
+      gpx += `</gpx>`;
+
+      const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hiking_track_${new Date().toISOString().slice(0,10)}.gpx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeXml(unsafe) {
+      return unsafe.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
         }
-
-        // 경로 기록 누적
-        function recordNewPoint(lat, lng, alt) {
-            const lastPt = trackPoints[trackPoints.length - 1];
-            const newPt = { lat, lng, alt, time: new Date() };
-
-            if (lastPt) {
-                // 이전 지점과의 거리 계산 (km)
-                const dist = calculateDistance(lastPt.lat, lastPt.lng, lat, lng);
-                
-                // 미세한 위경도 튀림 방지 (2미터 이상 이동 시만 적용)
-                if (dist > 0.002) {
-                    totalDistance += dist;
-                    trackPoints.push(newPt);
-                    trackPolyline.addLatLng([lat, lng]);
-                    document.getElementById('stat-distance').textContent = totalDistance.toFixed(2);
-                }
-            } else {
-                trackPoints.push(newPt);
-                trackPolyline.addLatLng([lat, lng]);
-            }
-        }
-
-        // 두 좌표 간 거리 계산 (Haversine 공식, km 단위)
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // 지구 반지름 (km)
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = 
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        // --- 컨트롤 및 이벤트 리스너 ---
-        function initEventListeners() {
-            // 다크모드 토글
-            document.getElementById('btn-theme').addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark');
-            });
-
-            // 지도 타일 레이어 전환
-            document.getElementById('btn-layer').addEventListener('click', () => {
-                map.removeLayer(activeTileLayer);
-                if (currentMapType === 'topo') {
-                    activeTileLayer = tileLayers.osm.addTo(map);
-                    currentMapType = 'osm';
-                    showToast('일반 지도(OSM)로 변경되었습니다.');
-                } else {
-                    activeTileLayer = tileLayers.topo.addTo(map);
-                    currentMapType = 'topo';
-                    showToast('등산/지형 지도(OpenTopoMap)로 변경되었습니다.');
-                }
-            });
-
-            // 현재 위치로 이동
-            document.getElementById('btn-locate').addEventListener('click', () => {
-                if (currentPosition) {
-                    map.flyTo([currentPosition.lat, currentPosition.lng], 16);
-                    setTrackingCenter(true);
-                } else {
-                    showToast('위치 정보를 찾는 중입니다...');
-                }
-            });
-
-            // 라이브 위치 고정 토글
-            document.getElementById('btn-tracking-toggle').addEventListener('click', () => {
-                setTrackingCenter(!isTrackingCenter);
-            });
-
-            // 트래킹 시작 / 일시정지 버튼
-            document.getElementById('btn-record-toggle').addEventListener('click', toggleRecording);
-
-            // 트래킹 종료 버튼
-            document.getElementById('btn-record-stop').addEventListener('click', stopRecording);
-
-            // 웨이포인트 버튼
-            document.getElementById('btn-add-waypoint').addEventListener('click', openWaypointModal);
-            document.getElementById('btn-wp-cancel').addEventListener('click', closeWaypointModal);
-            document.getElementById('btn-wp-save').addEventListener('click', saveWaypoint);
-        }
-
-        // 트래킹 센터 고정 상태 설정
-        function setTrackingCenter(enable) {
-            isTrackingCenter = enable;
-            const btn = document.getElementById('btn-tracking-toggle');
-            if (enable) {
-                btn.classList.add('text-blue-600', 'dark:text-blue-400', 'border-blue-500');
-                btn.classList.remove('text-gray-400');
-                showToast('위치 추적 고정 활성화');
-            } else {
-                btn.classList.remove('text-blue-600', 'dark:text-blue-400', 'border-blue-500');
-                btn.classList.add('text-gray-400');
-            }
-        }
-
-        // 트래킹 시작/일시정지
-        function toggleRecording() {
-            const recordBtn = document.getElementById('btn-record-toggle');
-            const recordIcon = document.getElementById('record-icon');
-            const recordText = document.getElementById('record-text');
-            const stopBtn = document.getElementById('btn-record-stop');
-
-            if (!isRecording) {
-                // 시작
-                isRecording = true;
-                isPaused = false;
-                startTime = new Date();
-                
-                recordBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-                recordBtn.classList.add('bg-amber-500', 'hover:bg-amber-600');
-                recordIcon.className = 'fa-solid fa-pause';
-                recordText.textContent = '일시정지';
-                stopBtn.disabled = false;
-
-                startTimer();
-                showToast('등산 경로 기록을 시작합니다.');
-            } else {
-                if (!isPaused) {
-                    // 일시정지
-                    isPaused = true;
-                    clearInterval(timerInterval);
-                    recordBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
-                    recordBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                    recordIcon.className = 'fa-solid fa-play';
-                    recordText.textContent = '재개';
-                    showToast('기록이 일시정지 되었습니다.');
-                } else {
-                    // 재개
-                    isPaused = false;
-                    recordBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-                    recordBtn.classList.add('bg-amber-500', 'hover:bg-amber-600');
-                    recordIcon.className = 'fa-solid fa-pause';
-                    recordText.textContent = '일시정지';
-                    startTimer();
-                    showToast('기록을 재개합니다.');
-                }
-            }
-        }
-
-        // 트래킹 중지 및 초기화
-        function stopRecording() {
-            if (!confirm('등산 트래킹을 종료하시겠습니까? 기록된 데이터가 저장 및 요약됩니다.')) return;
-
-            isRecording = false;
-            isPaused = false;
-            clearInterval(timerInterval);
-
-            // 버튼 상태 원복
-            const recordBtn = document.getElementById('btn-record-toggle');
-            const recordIcon = document.getElementById('record-icon');
-            const recordText = document.getElementById('record-text');
-            const stopBtn = document.getElementById('btn-record-stop');
-
-            recordBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
-            recordBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-            recordIcon.className = 'fa-solid fa-play';
-            recordText.textContent = '트래킹 시작';
-            stopBtn.disabled = true;
-
-            // 결과 요약 팝업
-            const formattedTime = formatTime(elapsedTime);
-            alert(`[등산 완료 요약]\n\n총 소요시간: ${formattedTime}\n총 이동거리: ${totalDistance.toFixed(2)} km\n웨이포인트 개수: ${waypoints.length}개`);
-
-            // 데이터 초기화 준비 (선택사항: 남기거나 초기화)
-        }
-
-        // 타이머 동작
-        function startTimer() {
-            timerInterval = setInterval(() => {
-                elapsedTime++;
-                document.getElementById('stat-time').textContent = formatTime(elapsedTime);
-            }, 1000);
-        }
-
-        // 시간 포맷팅 (초 -> HH:MM:SS)
-        function formatTime(seconds) {
-            const hrs = Math.floor(seconds / 3600);
-            const mins = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-            return [hrs, mins, secs].map(v => v < 10 ? '0' + v : v).join(':');
-        }
-
-        // --- 웨이포인트 기능 ---
-        function openWaypointModal() {
-            if (!currentPosition) {
-                showToast('현재 위치를 확인하지 못했습니다.');
-                return;
-            }
-            document.getElementById('modal-waypoint').classList.remove('hidden');
-        }
-
-        function closeWaypointModal() {
-            document.getElementById('modal-waypoint').classList.add('hidden');
-            document.getElementById('wp-note').value = '';
-        }
-
-        function saveWaypoint() {
-            const type = document.getElementById('wp-type').value;
-            const note = document.getElementById('wp-note').value.trim();
-
-            if (!currentPosition) return;
-
-            const icons = {
-                rest: { icon: 'fa-coffee', color: '#f59e0b', label: '쉼터' },
-                water: { icon: 'fa-faucet-drip', color: '#3b82f6', label: '약수터' },
-                view: { icon: 'fa-camera', color: '#10b981', label: '전망대' },
-                danger: { icon: 'fa-triangle-exclamation', color: '#ef4444', label: '위험지역' },
-                summit: { icon: 'fa-flag', color: '#8b5cf6', label: '정상' }
-            };
-
-            const config = icons[type] || icons.rest;
-
-            // 커스텀 웨이포인트 아이콘
-            const wpIcon = L.divIcon({
-                className: 'custom-wp-icon',
-                html: `<div style="background-color: ${config.color};" class="w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-white">
-                        <i class="fa-solid ${config.icon} text-sm"></i>
-                       </div>`,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            });
-
-            const marker = L.marker([currentPosition.lat, currentPosition.lng], { icon: wpIcon }).addTo(map);
-
-            const popupContent = `
-                <div class="p-1">
-                    <span class="inline-block px-2 py-0.5 text-xs font-bold text-white rounded mb-1" style="background-color: ${config.color}">
-                        ${config.label}
-                    </span>
-                    <p class="text-sm font-medium text-gray-800">${note || '메모 없음'}</p>
-                    <span class="text-xs text-gray-400 block mt-1">${new Date().toLocaleTimeString()} 등록</span>
-                </div>
-            `;
-            marker.bindPopup(popupContent).openPopup();
-
-            waypoints.push({
-                id: Date.now(),
-                lat: currentPosition.lat,
-                lng: currentPosition.lng,
-                type,
-                note,
-                marker
-            });
-
-            closeWaypointModal();
-            showToast(`웨이포인트(${config.label})가 추가되었습니다.`);
-        }
-
-        // --- 오프라인 / 온라인 상태 감지 ---
-        function checkOnlineStatus() {
-            const badge = document.getElementById('status-badge');
-            
-            function updateStatus() {
-                if (navigator.onLine) {
-                    badge.className = 'text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-medium flex items-center gap-1';
-                    badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>온라인</span>';
-                } else {
-                    badge.className = 'text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-medium flex items-center gap-1';
-                    badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>오프라인 (캐시 지도)</span>';
-                    showToast('네트워크 연결이 끊겼습니다. 타일 캐시 범위 내에서 지도가 동작합니다.');
-                }
-            }
-
-            window.addEventListener('online', updateStatus);
-            window.addEventListener('offline', updateStatus);
-        }
-
-        // --- 토스트 알림 메시지 ---
-        function showToast(message) {
-            const toast = document.createElement('div');
-            toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-gray-900/90 text-white text-xs px-4 py-2 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 opacity-0 transform translate-y-2';
-            toast.textContent = message;
-            document.body.appendChild(toast);
-
-            setTimeout(() => {
-                toast.classList.remove('opacity-0', 'translate-y-2');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => toast.remove(), 300);
-            }, 2500);
-        }
-    </script>
+      });
+    }
+  </script>
 </body>
 </html>
