@@ -1,442 +1,147 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>등산 지도 & 위치 트래커</title>
-  
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #121212; color: #ffffff; }
-    
-    #app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
-    
-    /* Header */
-    header { height: 50px; background: #1f1f1f; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #333; z-index: 1000; }
-    header h1 { font-size: 1.1rem; font-weight: 600; color: #4caf50; display: flex; align-items: center; gap: 8px; }
-    .status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; background: #333; color: #aaa; font-weight: 500; }
-    .status-badge.active { background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50; }
-
-    /* Map */
-    #map { flex: 1; width: 100%; height: 100%; z-index: 1; background-color: #242424; }
-
-    /* Floating Action Buttons on Map */
-    .map-controls { position: absolute; top: 60px; right: 12px; z-index: 999; display: flex; flex-direction: column; gap: 10px; }
-    .btn-fab { width: 44px; height: 44px; border-radius: 50%; background: #2a2a2a; color: #fff; border: 1px solid #444; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; }
-    .btn-fab:active { transform: scale(0.95); background: #333; }
-    .btn-fab.tracking { background: #e53935; border-color: #ff5252; animation: pulse 1.5s infinite; }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
-    }
-
-    /* Info Bar Overlay */
-    .info-overlay { position: absolute; top: 60px; left: 12px; z-index: 999; background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(8px); padding: 10px 14px; border-radius: 12px; border: 1px solid #444; display: flex; gap: 16px; font-size: 0.8rem; }
-    .info-item { display: flex; flex-direction: column; }
-    .info-item .label { color: #888; font-size: 0.7rem; }
-    .info-item .value { font-weight: bold; font-size: 0.95rem; color: #fff; }
-
-    /* Bottom Panel */
-    .bottom-panel { height: 200px; background: #1e1e1e; border-top: 1px solid #333; display: flex; flex-direction: column; z-index: 1000; }
-    .tab-buttons { display: flex; border-bottom: 1px solid #2d2d2d; background: #181818; }
-    .tab-btn { flex: 1; padding: 12px 0; background: none; border: none; color: #888; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; }
-    .tab-btn.active { color: #4caf50; border-bottom: 2px solid #4caf50; background: #1e1e1e; }
-
-    .tab-content { flex: 1; padding: 12px; overflow-y: auto; display: none; }
-    .tab-content.active { display: block; }
-
-    /* List Item Styling */
-    .wp-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #282828; border-radius: 8px; margin-bottom: 8px; border: 1px solid #333; }
-    .wp-info { display: flex; flex-direction: column; gap: 2px; }
-    .wp-title { font-weight: bold; font-size: 0.9rem; color: #fff; }
-    .wp-meta { font-size: 0.75rem; color: #aaa; }
-    .btn-delete { background: none; border: none; color: #ff5252; font-size: 1rem; cursor: pointer; padding: 4px 8px; }
-
-    /* Popup Style Override for Dark Theme */
-    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #282828 !important; color: #fff !important; border: 1px solid #444; }
-    .popup-form { display: flex; flex-direction: column; gap: 8px; width: 200px; padding: 4px; }
-    .popup-form input, .popup-form select, .popup-form textarea { width: 100%; padding: 8px; background: #181818; border: 1px solid #444; color: #fff; border-radius: 4px; font-size: 0.85rem; }
-    .popup-form button { background: #4caf50; color: #fff; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-
-    /* Utility */
-    .btn-action { width: 100%; padding: 10px; background: #333; border: 1px solid #444; color: #fff; border-radius: 6px; font-size: 0.85rem; cursor: pointer; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>등산 지도</title>
+<style>
+:root{--bg:#fff;--fg:#1c1c1e;--mut:#6b6b70;--line:#e2e2e6;--acc:#2e7d32;--dng:#d32f2f;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1e1f22;--fg:#f2f2f4;--mut:#9a9aa2;--line:#37383c;--acc:#66bb6a;--dng:#ef5350}}
+:root[data-theme="dark"]{--bg:#1e1f22;--fg:#f2f2f4;--mut:#9a9aa2;--line:#37383c;--acc:#66bb6a;--dng:#ef5350}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Apple SD Gothic Neo",system-ui,sans-serif;overflow:hidden;-webkit-text-size-adjust:100%}
+#map{position:absolute;inset:0;background:#cfd8cf}
+.leaflet-container{overflow:hidden;position:relative;touch-action:none;-webkit-tap-highlight-color:transparent;outline:0}
+.leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-layer,.leaflet-tile-container{position:absolute;left:0;top:0}
+.leaflet-tile,.leaflet-marker-icon{user-select:none;-webkit-user-drag:none}
+.leaflet-tile{visibility:hidden}.leaflet-tile-loaded{visibility:inherit}
+.leaflet-container img.leaflet-tile{max-width:none!important}
+.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-marker-pane{z-index:600}
+.leaflet-overlay-pane svg{max-width:none!important}
+.leaflet-zoom-animated{transform-origin:0 0}
+.leaflet-zoom-anim .leaflet-zoom-animated{transition:transform .25s cubic-bezier(0,0,.25,1)}
+.leaflet-zoom-anim .leaflet-tile{transition:none}
+.leaflet-fade-anim .leaflet-tile{will-change:opacity}
+.leaflet-interactive{cursor:pointer}
+.pin{width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;border:2px solid #fff;font:700 13px/24px sans-serif;text-align:center;box-shadow:0 1px 4px #0006}
+.pin.sel{background:var(--dng);transform:scale(1.25)}
+.bar{position:absolute;z-index:1000;left:0;right:0;padding:8px 10px}
+#top{top:0;padding-top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;gap:6px;pointer-events:none}
+#top>*{pointer-events:auto}
+.seg{display:flex;background:var(--bg);border-radius:12px;box-shadow:0 1px 6px #0004;overflow:hidden}
+button{font:inherit;color:var(--fg);background:var(--bg);border:0;padding:10px 13px;font-size:14px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+button.on{background:var(--acc);color:#fff}
+#side{position:absolute;z-index:1000;right:10px;bottom:calc(var(--sheet,150px) + 14px);display:flex;flex-direction:column;gap:8px}
+#side button{width:48px;height:48px;border-radius:50%;box-shadow:0 1px 6px #0005;font-size:20px;padding:0}
+#sheet{position:absolute;z-index:1000;left:0;right:0;bottom:0;background:var(--bg);border-radius:18px 18px 0 0;box-shadow:0 -2px 12px #0004;padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sum{font-size:15px;font-weight:600}.sub{font-size:12px;color:var(--mut)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;min-height:48px}
+.chip{flex:none;border:1px solid var(--line);border-radius:16px;padding:6px 12px;font-size:13px}
+.chip.sel{border-color:var(--dng);color:var(--dng)}
+.del{background:var(--dng);color:#fff;border-radius:10px;font-weight:600}
+.ghost{border:1px solid var(--line);border-radius:10px}
+#toast{position:absolute;z-index:1100;left:50%;top:calc(env(safe-area-inset-top,0px) + 60px);transform:translateX(-50%);background:#000c;color:#fff;padding:8px 14px;border-radius:14px;font-size:13px;display:none;max-width:85%}
+#attr{position:absolute;z-index:900;left:6px;bottom:calc(var(--sheet,150px) + 2px);font-size:9px;color:#333;background:#fffa;padding:1px 4px;border-radius:4px}
+</style>
 </head>
 <body>
-
-  <div id="app-container">
-    <header>
-      <h1><i class="fa-solid fa-mountain"></i> 등산 트래커</h1>
-      <span id="status-badge" class="status-badge">대기 중</span>
-    </header>
-
-    <div style="position: relative; flex: 1; width: 100%;">
-      <div id="map"></div>
-
-      <!-- Info Bar -->
-      <div class="info-overlay">
-        <div class="info-item">
-          <span class="label">고도</span>
-          <span id="stat-alt" class="value">-- m</span>
-        </div>
-        <div class="info-item">
-          <span class="label">이동 거리</span>
-          <span id="stat-dist" class="value">0.0 km</span>
-        </div>
-        <div class="info-item">
-          <span class="label">경과 시간</span>
-          <span id="stat-time" class="value">00:00</span>
-        </div>
-      </div>
-
-      <!-- Map Floating Buttons -->
-      <div class="map-controls">
-        <button id="btn-recenter" class="btn-fab" title="내 위치로"><i class="fa-solid fa-crosshairs"></i></button>
-        <button id="btn-add-wp" class="btn-fab" title="현재 위치에 웨이포인트 추가"><i class="fa-solid fa-map-pin"></i></button>
-        <button id="btn-toggle-track" class="btn-fab" title="트래킹 시작/정지"><i class="fa-solid fa-play"></i></button>
-      </div>
-    </div>
-
-    <!-- Bottom Dashboard Panel -->
-    <div class="bottom-panel">
-      <div class="tab-buttons">
-        <button class="tab-btn active" data-tab="tab-waypoints"><i class="fa-solid fa-list"></i> 웨이포인트 (<span id="wp-count">0</span>)</button>
-        <button class="tab-btn" data-tab="tab-settings"><i class="fa-solid fa-gear"></i> 설정 / 내보내기</button>
-      </div>
-
-      <div id="tab-waypoints" class="tab-content active">
-        <div id="wp-list">
-          <p style="color: #666; text-align: center; margin-top: 20px; font-size: 0.85rem;">
-            지도를 터치하거나 📍 버튼을 눌러<br>웨이포인트를 추가해 보세요.
-          </p>
-        </div>
-      </div>
-
-      <div id="tab-settings" class="tab-content">
-        <button id="btn-export-gpx" class="btn-action"><i class="fa-solid fa-file-export"></i> GPX 파일로 저장하기</button>
-        <button id="btn-clear-data" class="btn-action" style="color: #ff5252;"><i class="fa-solid fa-trash"></i> 전체 데이터 초기화</button>
-      </div>
-    </div>
+<div id="map"></div>
+<div class="bar" id="top">
+  <div class="seg"><button id="bTopo" class="on">지형도</button><button id="bOsm">일반</button></div>
+  <div class="seg"><button id="bTrail" class="on">등산로</button></div>
+</div>
+<div id="toast"></div>
+<div id="side">
+  <button id="bAddMe" title="내 위치에 웨이포인트 추가">📌</button>
+  <button id="bLoc" title="현재 위치">◎</button>
+</div>
+<div id="attr">© OpenStreetMap · OpenTopoMap · Waymarked Trails</div>
+<div id="sheet">
+  <div class="row">
+    <div><div class="sum" id="sum">웨이포인트 0개</div><div class="sub" id="hint">지도를 터치하면 웨이포인트가 추가됩니다</div></div>
+    <button class="ghost" id="bClear">전체 삭제</button>
   </div>
+  <div class="chips" id="chips"></div>
+  <div class="row" id="detail" style="display:none"><div><div class="sum" id="dName"></div><div class="sub" id="dInfo"></div></div><button class="del" id="bDel">삭제</button></div>
+</div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+(function(){
+var map=L.map('map',{zoomControl:false,attributionControl:false,tap:true}).setView([37.659,126.977],12);
+var topo=L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17});
+var osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19});
+var trail=L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png',{maxZoom:18,opacity:.85});
+var base=topo.addTo(map);trail.addTo(map);
+var $=function(i){return document.getElementById(i)};
 
-  <script>
-    var map, userMarker, trackPolyline;
-    var isTracking = false;
-    var watchId = null;
-    var currentPosition = null;
-    var pathCoordinates = [];
-    var waypoints = [];
-    var totalDistance = 0;
-    var startTime = null;
-    var timerInterval = null;
+function setBase(l,on,off){map.removeLayer(base);base=l.addTo(map);base.bringToBack();on.classList.add('on');off.classList.remove('on')}
+$('bTopo').onclick=function(){setBase(topo,$('bTopo'),$('bOsm'))};
+$('bOsm').onclick=function(){setBase(osm,$('bOsm'),$('bTopo'))};
+$('bTrail').onclick=function(){if(map.hasLayer(trail)){map.removeLayer(trail);this.classList.remove('on')}else{trail.addTo(map);this.classList.add('on')}};
 
-    var typeIcons = {
-      '쉼터': '☕',
-      '약수터': '💧',
-      '위험지역': '⚠️',
-      '사진포인트': '📸',
-      '기타': '📍'
-    };
+var toastT;function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toastT);toastT=setTimeout(function(){t.style.display='none'},3000)}
 
-    window.onload = function() {
-      initMap();
-      loadSavedData();
-      setupUIEvents();
-    };
+/* 웨이포인트 */
+var wps=[],sel=-1,markers=[],line=L.polyline([],{color:'#d84315',weight:4,opacity:.9,dashArray:'8 6'}).addTo(map);
+try{wps=JSON.parse(localStorage.getItem('hk_wps')||'[]')}catch(e){wps=[]}
+function save(){try{localStorage.setItem('hk_wps',JSON.stringify(wps))}catch(e){}}
+function dist(a,b){var R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(x))}
+function total(){var s=0;for(var i=1;i<wps.length;i++)s+=dist(wps[i-1],wps[i]);return s}
+function fmt(k){return k<1?Math.round(k*1000)+' m':k.toFixed(2)+' km'}
 
-    function initMap() {
-      // OpenStreetMap 타일 지도 연결
-      map = L.map('map', { zoomControl: false }).setView([37.5665, 126.9780], 15);
+function render(){
+  markers.forEach(function(m){map.removeLayer(m)});markers=[];
+  wps.forEach(function(w,i){
+    var m=L.marker([w.lat,w.lng],{draggable:true,icon:L.divIcon({className:'',html:'<div class="pin'+(i===sel?' sel':'')+'">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(map);
+    m.on('click',function(){sel=(sel===i?-1:i);render()});
+    m.on('drag',function(e){var p=e.target.getLatLng();w.lat=p.lat;w.lng=p.lng;line.setLatLngs(wps.map(function(x){return[x.lat,x.lng]}))});
+    m.on('dragend',function(){save();render()});
+    markers.push(m);
+  });
+  line.setLatLngs(wps.map(function(x){return[x.lat,x.lng]}));
+  $('sum').textContent='웨이포인트 '+wps.length+'개'+(wps.length>1?' · 총 '+fmt(total()):'');
+  $('hint').textContent=wps.length?'핀을 터치해 선택, 드래그해 이동':'지도를 터치하면 웨이포인트가 추가됩니다';
+  var c=$('chips');c.innerHTML='';
+  wps.forEach(function(w,i){var b=document.createElement('div');b.className='chip'+(i===sel?' sel':'');b.textContent=(i+1)+'번';b.onclick=function(){sel=i;map.panTo([w.lat,w.lng]);render()};c.appendChild(b)});
+  var d=$('detail');
+  if(sel>=0&&wps[sel]){var w=wps[sel];d.style.display='flex';$('dName').textContent=(sel+1)+'번 웨이포인트';
+    $('dInfo').textContent=w.lat.toFixed(5)+', '+w.lng.toFixed(5)+(sel>0?' · 이전 지점까지 '+fmt(dist(wps[sel-1],w)):'')}
+  else d.style.display='none';
+  document.documentElement.style.setProperty('--sheet',$('sheet').offsetHeight+'px');
+  save();
+}
+function add(lat,lng){wps.push({lat:lat,lng:lng});sel=wps.length-1;render()}
+map.on('click',function(e){add(e.latlng.lat,e.latlng.lng)});
+$('bDel').onclick=function(){if(sel>=0){wps.splice(sel,1);sel=-1;render()}};
+$('bClear').onclick=function(){if(wps.length&&confirm('웨이포인트를 모두 삭제할까요?')){wps=[];sel=-1;render()}};
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(map);
-
-      trackPolyline = L.polyline([], { color: '#ff3366', weight: 4, opacity: 0.8 }).addTo(map);
-
-      // 지도 터치/클릭시 웨이포인트 추가 팝업 생성
-      map.on('click', onMapClick);
-
-      getCurrentLocation();
-    }
-
-    function onMapClick(e) {
-      var lat = e.latlng.lat;
-      var lng = e.latlng.lng;
-      
-      var popupContent = 
-        '<div class="popup-form">' +
-          '<strong style="text-align:center;">새 웨이포인트 추가</strong>' +
-          '<input type="text" id="pop-name" placeholder="지점 이름 (예: 약수터)" />' +
-          '<select id="pop-type">' +
-            '<option value="쉼터">☕ 쉼터</option>' +
-            '<option value="약수터">💧 약수터</option>' +
-            '<option value="위험지역">⚠️ 위험지역</option>' +
-            '<option value="사진포인트">📸 사진포인트</option>' +
-            '<option value="기타" selected>📍 기타</option>' +
-          '</select>' +
-          '<textarea id="pop-note" placeholder="메모 (선택)"></textarea>' +
-          '<button onclick="saveWaypointFromPopup(' + lat + ',' + lng + ')">저장하기</button>' +
-        '</div>';
-
-      L.popup()
-        .setLatLng(e.latlng)
-        .setContent(popupContent)
-        .openOn(map);
-    }
-
-    function saveWaypointFromPopup(lat, lng) {
-      var nameEl = document.getElementById('pop-name');
-      var typeEl = document.getElementById('pop-type');
-      var noteEl = document.getElementById('pop-note');
-
-      var name = (nameEl && nameEl.value) ? nameEl.value : '이름 없음';
-      var type = (typeEl && typeEl.value) ? typeEl.value : '기타';
-      var note = (noteEl && noteEl.value) ? noteEl.value : '';
-
-      var newWp = {
-        id: Date.now(),
-        lat: lat,
-        lng: lng,
-        name: name,
-        type: type,
-        note: note,
-        alt: currentPosition ? currentPosition.alt : null,
-        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-      };
-
-      waypoints.push(newWp);
-      renderWaypointMarker(newWp);
-      updateWaypointList();
-      saveDataToStorage();
-
-      map.closePopup();
-    }
-
-    function renderWaypointMarker(wp) {
-      var iconEmoji = typeIcons[wp.type] || '📍';
-      var customIcon = L.divIcon({
-        html: '<div style="font-size: 22px; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.7));">' + iconEmoji + '</div>',
-        className: 'custom-wp-icon',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
-      });
-
-      var marker = L.marker([wp.lat, wp.lng], { icon: customIcon }).addTo(map);
-      
-      marker.bindPopup(
-        '<div style="font-size:0.85rem;">' +
-          '<strong style="color:#4caf50;">[' + wp.type + '] ' + wp.name + '</strong><br>' +
-          (wp.note ? '<span style="color:#ccc;">' + wp.note + '</span><br>' : '') +
-          '<small style="color:#888;">기록 시간: ' + wp.time + '</small>' +
-        '</div>'
-      );
-
-      wp.markerRef = marker;
-    }
-
-    function getCurrentLocation() {
-      if (!navigator.geolocation) {
-        alert('위치 서비스를 지원하지 않는 브라우저입니다.');
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        function(pos) {
-          var lat = pos.coords.latitude;
-          var lng = pos.coords.longitude;
-          var alt = pos.coords.altitude;
-
-          currentPosition = { lat: lat, lng: lng, alt: alt };
-          updateUserMarker(lat, lng);
-          map.setView([lat, lng], 16);
-          
-          document.getElementById('stat-alt').textContent = alt ? Math.round(alt) + ' m' : 'N/A';
-        },
-        function(err) {
-          console.warn('Geolocation 오류:', err.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-
-    function updateUserMarker(lat, lng) {
-      if (!userMarker) {
-        var userIcon = L.divIcon({
-          html: '<div style="width:16px; height:16px; background:#2196f3; border:3px solid #fff; border-radius:50%; box-shadow:0 0 8px rgba(33,150,243,0.8);"></div>',
-          className: 'user-pos-icon',
-          iconSize: [16, 16],
-          iconAnchor: [8, 8]
-        });
-        userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
-      } else {
-        userMarker.setLatLng([lat, lng]);
-      }
-    }
-
-    function toggleTracking() {
-      var btn = document.getElementById('btn-toggle-track');
-      var badge = document.getElementById('status-badge');
-
-      if (!isTracking) {
-        isTracking = true;
-        btn.classList.add('tracking');
-        btn.innerHTML = '<i class="fa-solid fa-square"></i>';
-        badge.classList.add('active');
-        badge.textContent = '기록 중';
-
-        if (!startTime) startTime = new Date();
-        startTimer();
-
-        watchId = navigator.geolocation.watchPosition(
-          onPositionUpdate,
-          function(err) { console.warn(err); },
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-        );
-      } else {
-        isTracking = false;
-        btn.classList.remove('tracking');
-        btn.innerHTML = '<i class="fa-solid fa-play"></i>';
-        badge.classList.remove('active');
-        badge.textContent = '일시 정지';
-
-        if (watchId) navigator.geolocation.clearWatch(watchId);
-        stopTimer();
-      }
-    }
-
-    function onPositionUpdate(pos) {
-      var lat = pos.coords.latitude;
-      var lng = pos.coords.longitude;
-      var alt = pos.coords.altitude;
-
-      currentPosition = { lat: lat, lng: lng, alt: alt };
-      updateUserMarker(lat, lng);
-
-      if (pathCoordinates.length > 0) {
-        var prevLatLng = pathCoordinates[pathCoordinates.length - 1];
-        var distDelta = map.distance(prevLatLng, [lat, lng]);
-        if (distDelta > 3) {
-          totalDistance += distDelta;
-          pathCoordinates.push([lat, lng]);
-          trackPolyline.setLatLngs(pathCoordinates);
-        }
-      } else {
-        pathCoordinates.push([lat, lng]);
-      }
-
-      document.getElementById('stat-dist').textContent = (totalDistance / 1000).toFixed(2) + ' km';
-      document.getElementById('stat-alt').textContent = alt ? Math.round(alt) + ' m' : 'N/A';
-      
-      saveDataToStorage();
-    }
-
-    function setupUIEvents() {
-      document.getElementById('btn-recenter').onclick = function() {
-        if (currentPosition) {
-          map.setView([currentPosition.lat, currentPosition.lng], 16);
-        } else {
-          getCurrentLocation();
-        }
-      };
-
-      document.getElementById('btn-toggle-track').onclick = toggleTracking;
-
-      document.getElementById('btn-add-wp').onclick = function() {
-        if (!currentPosition) {
-          alert('GPS 위치 정보를 불러오는 중입니다. 잠시 후 시도해 주세요.');
-          return;
-        }
-        onMapClick({ latlng: L.latLng(currentPosition.lat, currentPosition.lng) });
-      };
-
-      var tabBtns = document.querySelectorAll('.tab-btn');
-      for (var i = 0; i < tabBtns.length; i++) {
-        tabBtns[i].onclick = function(e) {
-          var targetTab = this.getAttribute('data-tab');
-          
-          var allBtns = document.querySelectorAll('.tab-btn');
-          var allContents = document.querySelectorAll('.tab-content');
-          
-          for (var j = 0; j < allBtns.length; j++) allBtns[j].classList.remove('active');
-          for (var k = 0; k < allContents.length; k++) allContents[k].classList.remove('active');
-
-          this.classList.add('active');
-          document.getElementById(targetTab).classList.add('active');
-        };
-      }
-
-      document.getElementById('btn-export-gpx').onclick = exportGPX;
-      document.getElementById('btn-clear-data').onclick = clearAllData;
-    }
-
-    function startTimer() {
-      timerInterval = setInterval(function() {
-        var now = new Date();
-        var diffMs = now - startTime;
-        var totalSecs = Math.floor(diffMs / 1000);
-        var mins = Math.floor(totalSecs / 60).toString();
-        var secs = (totalSecs % 60).toString();
-        
-        if (mins.length < 2) mins = '0' + mins;
-        if (secs.length < 2) secs = '0' + secs;
-
-        document.getElementById('stat-time').textContent = mins + ':' + secs;
-      }, 1000);
-    }
-
-    function stopTimer() {
-      if (timerInterval) clearInterval(timerInterval);
-    }
-
-    function updateWaypointList() {
-      var listContainer = document.getElementById('wp-list');
-      document.getElementById('wp-count').textContent = waypoints.length;
-
-      if (waypoints.length === 0) {
-        listContainer.innerHTML = 
-          '<p style="color: #666; text-align: center; margin-top: 20px; font-size: 0.85rem;">' +
-            '지도를 터치하거나 📍 버튼을 눌러<br>웨이포인트를 추가해 보세요.' +
-          '</p>';
-        return;
-      }
-
-      listContainer.innerHTML = '';
-      for (var i = 0; i < waypoints.length; i++) {
-        var wp = waypoints[i];
-        var item = document.createElement('div');
-        item.className = 'wp-item';
-        item.innerHTML = 
-          '<div class="wp-info">' +
-            '<span class="wp-title">' + (typeIcons[wp.type] || '📍') + ' ' + wp.name + '</span>' +
-            '<span class="wp-meta">시간: ' + wp.time + (wp.alt ? ' | 고도: ' + Math.round(wp.alt) + 'm' : '') + '</span>' +
-          '</div>' +
-          '<button class="btn-delete" onclick="deleteWaypoint(' + wp.id + ')"><i class="fa-solid fa-trash"></i></button>';
-        listContainer.appendChild(item);
-      }
-    }
-
-    function deleteWaypoint(id) {
-      for (var i = 0; i < waypoints.length; i++) {
-        if (waypoints[i].id === id) {
-          if (waypoints[i].markerRef) {
-            map.removeLayer(waypoints[i].markerRef);
-          }
-          waypoints.splice(i, 1);
-          break;
-        }
-      }
-      updateWaypointList();
-      saveDataToStorage();
-    }
+/* 현재 위치 */
+var me=null,acc=null,watch=null,first=true;
+function onPos(p){
+  var ll=[p.coords.latitude,p.coords.longitude];
+  if(!me){me=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#1976d2',fillOpacity:1,interactive:false}).addTo(map);
+    acc=L.circle(ll,{radius:p.coords.accuracy,color:'#1976d2',weight:1,fillOpacity:.12,interactive:false}).addTo(map)}
+  else{me.setLatLng(ll);acc.setLatLng(ll);acc.setRadius(p.coords.accuracy)}
+  if(first){first=false;map.setView(ll,Math.max(map.getZoom(),15))}
+}
+function onErr(e){toast(e.code===1?'위치 권한이 거부되었습니다. 설정에서 허용해 주세요.':'현재 위치를 가져올 수 없습니다.');first=true}
+function locate(){
+  if(!navigator.geolocation){toast('이 브라우저는 위치 기능을 지원하지 않습니다.');return}
+  if(watch===null)watch=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  if(me)map.setView(me.getLatLng(),Math.max(map.getZoom(),15));else{first=true;toast('위치를 확인하는 중…')}
+}
+$('bLoc').onclick=locate;
+$('bAddMe').onclick=function(){
+  if(!me){locate();toast('위치 확인 후 다시 눌러 주세요.');return}
+  var p=me.getLatLng();add(p.lat,p.lng);
+};
+render();
+window.addEventListener('resize',function(){map.invalidateSize();render()});
+})();
+</script>
+</body>
+</html>
